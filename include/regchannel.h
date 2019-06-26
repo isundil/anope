@@ -81,6 +81,7 @@ class CoreExport ChannelInfo : public Serializable, public Extensible
 	Serialize::Reference<BotInfo> bi;         /* Bot used on this channel */
 
 	time_t banexpire;                       /* Time bans expire in */
+	time_t userbanexpire;                   /* Time bans expire in */
 
  	/** Constructor
 	 * @param chname The channel name

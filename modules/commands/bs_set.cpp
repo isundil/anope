@@ -68,8 +68,8 @@ class CommandBSSet : public Command
 
 class CommandBSSetBanExpire : public Command
 {
- public:
- 	class UnbanTimer : public Timer
+public:
+	class UnbanTimer : public Timer
 	{
 		Anope::string chname;
 		Anope::string mask;
@@ -89,6 +89,32 @@ class CommandBSSetBanExpire : public Command
 	{
 		this->SetDesc(_("Configures the time bot bans expire in"));
 		this->SetSyntax(_("\037channel\037 \037time\037"));
+	}
+
+	virtual void SetValue(CommandSource &source, const AccessGroup& access, ChannelInfo *ci, time_t value)
+	{
+		if (value < 0)
+		{
+			source.Reply(BAD_EXPIRY_TIME);
+			return;
+		}
+
+		/* cap at 1 day */
+		if (value > 86400)
+		{
+			source.Reply(_("Ban expiry may not be longer than 1 day."));
+			return;
+		}
+
+		ci->banexpire = value;
+
+		bool override = !access.HasPriv("SET");
+		Log(override ? LOG_OVERRIDE : LOG_COMMAND, source, this, ci) << "to change banexpire to " << ci->banexpire;
+
+		if (!ci->banexpire)
+			source.Reply(_("Bot bans will no longer automatically expire."));
+		else
+			source.Reply(_("Bot bans will automatically expire after %s."), Anope::Duration(ci->banexpire, source.GetAccount()).c_str());
 	}
 
 	void Execute(CommandSource &source, const std::vector<Anope::string> &params) anope_override
@@ -117,31 +143,10 @@ class CommandBSSetBanExpire : public Command
 		}
 
 		time_t t = Anope::DoTime(arg);
-		if (t < 0)
-		{
-			source.Reply(BAD_EXPIRY_TIME);
-			return;
-		}
-
-		/* cap at 1 day */
-		if (t > 86400)
-		{
-			source.Reply(_("Ban expiry may not be longer than 1 day."));
-			return;
-		}
-
-		ci->banexpire = t;
-
-		bool override = !access.HasPriv("SET");
-		Log(override ? LOG_OVERRIDE : LOG_COMMAND, source, this, ci) << "to change banexpire to " << ci->banexpire;
-
-		if (!ci->banexpire)
-			source.Reply(_("Bot bans will no longer automatically expire."));
-		else
-			source.Reply(_("Bot bans will automatically expire after %s."), Anope::Duration(ci->banexpire, source.GetAccount()).c_str());
+		SetValue(source, access, ci, t);
 	}
 
-	bool OnHelp(CommandSource &source, const Anope::string &) anope_override
+	virtual bool OnHelp(CommandSource &source, const Anope::string &) anope_override
 	{
 		this->SendSyntax(source);
 		source.Reply(_(" \n"
@@ -151,6 +156,53 @@ class CommandBSSetBanExpire : public Command
 				"automatically expiring."));
 		return true;
 	}
+};
+
+class CommandBSSetUserBanExpire : public CommandBSSetBanExpire
+{
+public:
+	CommandBSSetUserBanExpire(Module *creator, const Anope::string &sname = "botserv/set/userbanexpire") : CommandBSSetBanExpire(creator, sname)
+	{
+		this->SetDesc(_("Configures the time user bans expire in"));
+		this->SetSyntax(_("\037channel\037 \037time\037"));
+	}
+
+	bool OnHelp(CommandSource &source, const Anope::string &) anope_override
+	{
+		this->SendSyntax(source);
+		source.Reply(_(" \n"
+				"Sets the time user bans expire in. If enabled, any bans placed by\n"
+				"anyone but bots will automatically be removed after the given time.\n"
+				"Set to 0 to disable bans from automatically expiring."));
+		return true;
+	}
+
+	virtual void SetValue(CommandSource &source, const AccessGroup& access, ChannelInfo *ci, time_t value) anope_override
+	{
+		if (value < 0)
+		{
+			source.Reply(BAD_EXPIRY_TIME);
+			return;
+		}
+
+		/* cap at 2 day */
+		if (value > 172800)
+		{
+			source.Reply(_("Ban expiry may not be longer than 2 days."));
+			return;
+		}
+
+		ci->userbanexpire = value;
+
+		bool override = !access.HasPriv("SET");
+		Log(override ? LOG_OVERRIDE : LOG_COMMAND, source, this, ci) << "to change userbanexpire to " << ci->userbanexpire;
+
+		if (!ci->userbanexpire)
+			source.Reply(_("User bans will no longer automatically expire."));
+		else
+			source.Reply(_("User bans will automatically expire after %s."), Anope::Duration(ci->userbanexpire, source.GetAccount()).c_str());
+	}
+
 };
 
 class CommandBSSetPrivate : public Command
@@ -207,12 +259,13 @@ class BSSet : public Module
 {
 	CommandBSSet commandbsset;
 	CommandBSSetBanExpire commandbssetbanexpire;
+	CommandBSSetUserBanExpire commandbssetuserbanexpire;
 	CommandBSSetPrivate commandbssetprivate;
 
  public:
 	BSSet(const Anope::string &modname, const Anope::string &creator) : Module(modname, creator, VENDOR),
 		commandbsset(this), commandbssetbanexpire(this),
-		commandbssetprivate(this)
+		commandbssetuserbanexpire(this), commandbssetprivate(this)
 	{
 	}
 
@@ -222,6 +275,17 @@ class BSSet : public Module
 			return;
 
 		new CommandBSSetBanExpire::UnbanTimer(this, ci->name, mask, ci->banexpire);
+	}
+
+	EventReturn OnChannelModeSet(Channel *c, MessageSource &setter, ChannelMode *mode, const Anope::string &param) anope_override
+	{
+		if (!setter.GetUser() || mode->name != "BAN")
+			return EVENT_CONTINUE;
+
+		ChannelInfo *ci = ChannelInfo::Find(c->name);
+		if (ci && ci->userbanexpire)
+			new CommandBSSetUserBanExpire::UnbanTimer(this, ci->name, param, ci->userbanexpire);
+		return EVENT_CONTINUE;
 	}
 };
 

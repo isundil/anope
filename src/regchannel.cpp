@@ -107,6 +107,7 @@ ChannelInfo::ChannelInfo(const Anope::string &chname) : Serializable("ChannelInf
 	if (this->c)
 		this->c->ci = this;
 	this->banexpire = 0;
+	this->userbanexpire = 0;
 	this->bi = NULL;
 	this->last_topic_time = 0;
 
@@ -201,6 +202,7 @@ void ChannelInfo::Serialize(Serialize::Data &data) const
 	if (this->bi)
 		data["bi"] << this->bi->nick;
 	data.SetType("banexpire", Serialize::Data::DT_INT); data["banexpire"] << this->banexpire;
+	data.SetType("userbanexpire", Serialize::Data::DT_INT); data["userbanexpire"] << this->userbanexpire;
 	data["memomax"] << this->memos.memomax;
 	for (unsigned i = 0; i < this->memos.ignores.size(); ++i)
 		data["memoignores"] << this->memos.ignores[i] << " ";
@@ -253,6 +255,7 @@ Serializable* ChannelInfo::Unserialize(Serializable *obj, Serialize::Data &data)
 			ci->bi->UnAssign(NULL, ci);
 	}
 	data["banexpire"] >> ci->banexpire;
+	data["userbanexpire"] >> ci->userbanexpire;
 	data["memomax"] >> ci->memos.memomax;
 	{
 		Anope::string buf;
