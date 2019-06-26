@@ -56,7 +56,8 @@ class CommandCSEnforce : public Command
 			if (user->IsProtected())
 				continue;
 
-			if (ci->AccessFor(user).empty())
+			const AccessGroup access = ci->AccessFor(user);
+			if (access.empty() && !access.founder)
 				users.push_back(user);
 		}
 
