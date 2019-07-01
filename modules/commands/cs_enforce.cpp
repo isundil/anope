@@ -68,6 +68,7 @@ class CommandCSEnforce : public Command
 			Anope::string mask = ci->GetIdealBan(user);
 			Anope::string reason = Language::Translate(user, _("RESTRICTED enforced by ")) + source.GetNick();
 			ci->c->SetMode(NULL, "BAN", mask);
+			FOREACH_MOD(OnBotBan, (user, ci, mask));
 			ci->c->Kick(NULL, user, "%s", reason.c_str());
 		}
 

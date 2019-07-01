@@ -919,6 +919,7 @@ bool Channel::CheckKick(User *user)
 	Log(LOG_DEBUG) << "Autokicking " << user->nick << " (" << mask << ") from " << this->name;
 
 	this->SetMode(NULL, "BAN", mask);
+	FOREACH_MOD(OnBotBan, (user, ci, mask));
 	this->Kick(NULL, user, "%s", reason.c_str());
 
 	return true;
