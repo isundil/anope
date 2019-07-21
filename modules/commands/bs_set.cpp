@@ -271,7 +271,7 @@ class BSSet : public Module
 
 	void OnBotBan(User *u, ChannelInfo *ci, const Anope::string &mask) anope_override
 	{
-		if (!ci->banexpire)
+		if (!ci || !ci->banexpire)
 			return;
 
 		new CommandBSSetBanExpire::UnbanTimer(this, ci->name, mask, ci->banexpire);
