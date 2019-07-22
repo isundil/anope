@@ -61,12 +61,7 @@ class CommandCSBanList : public Command
 			return;
 		}
 
-		AccessGroup u_access = source.AccessFor(ci);
-
-		if (!u_access.HasPriv("BAN"))
-			source.Reply(ACCESS_DENIED);
-		else
-			sendBanList(*(ci->c), source);
+		sendBanList(*(ci->c), source);
 	}
 
 	bool OnHelp(CommandSource &source, const Anope::string &subcommand) anope_override
