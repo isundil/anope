@@ -124,6 +124,10 @@ Serializable* NickCore::Unserialize(Serializable *obj, Serialize::Data &data)
 	if (b)
 		nc->Extend<bool>("NS_PRIVATE");
 	b = false;
+	data["extensible:USE_GRAVATAR"] >> b;
+	if (b)
+		nc->Extend<bool>("USE_GRAVATAR");
+	b = false;
 	data["extensible:AUTOOP"] >> b;
 	if (b)
 		nc->Extend<bool>("AUTOOP");

@@ -1096,6 +1096,68 @@ class CommandNSSASetSecure : public CommandNSSetSecure
 	}
 };
 
+class CommandNSSetGravatar : public Command
+{
+ public:
+	CommandNSSetGravatar(Module *creator, const Anope::string &sname = "nickserv/set/gravatar", size_t min = 1) : Command(creator, sname, min, min + 1)
+	{
+		this->SetDesc(_("Sets whether you want to have your IRC account linked to you gravatar profile or not."));
+		this->SetSyntax("{ON | OFF}");
+	}
+
+	void Run(CommandSource &source, const Anope::string &user, const Anope::string &param)
+	{
+		if (Anope::ReadOnly)
+		{
+			source.Reply(READ_ONLY_MODE);
+			return;
+		}
+
+		const NickAlias *na = NickAlias::Find(user);
+		if (na == NULL)
+		{
+			source.Reply(NICK_X_NOT_REGISTERED, user.c_str());
+			return;
+		}
+		NickCore *nc = na->nc;
+
+		EventReturn MOD_RESULT;
+		FOREACH_RESULT(OnSetNickOption, MOD_RESULT, (source, this, nc, param));
+		if (MOD_RESULT == EVENT_STOP)
+			return;
+
+		if (param.equals_ci("ON"))
+		{
+			Log(nc == source.GetAccount() ? LOG_COMMAND : LOG_ADMIN, source, this) << "to enable gravatar for " << na->nc->display;
+			nc->Extend<bool>("USE_GRAVATAR");
+			source.Reply(_("Your gravatar will from now be displayed next to your messages."));
+		}
+		else if (param.equals_ci("OFF"))
+		{
+			Log(nc == source.GetAccount() ? LOG_COMMAND : LOG_ADMIN, source, this) << "to disable gravatar for " << na->nc->display;
+			nc->Shrink<bool>("USE_GRAVATAR");
+			source.Reply(_("Your gravatar will no longer be displayed next to your messages."));
+		}
+		else
+			this->OnSyntaxError(source, "USE_GRAVATAR");
+	}
+
+	void Execute(CommandSource &source, const std::vector<Anope::string> &params) anope_override
+	{
+		this->Run(source, source.nc->display, params[0]);
+	}
+
+	bool OnHelp(CommandSource &source, const Anope::string &) anope_override
+	{
+		this->SendSyntax(source);
+		source.Reply(" ");
+		source.Reply(_("Sets whether your gravatar profile picture should be displayed next to\n"
+				"your messages on compatible devices."));
+		return true;
+	}
+};
+
+
 class CommandNSSASetNoexpire : public Command
 {
  public:
@@ -1182,8 +1244,10 @@ class NSSet : public Module
 
 	CommandNSSASetNoexpire commandnssasetnoexpire;
 
+	CommandNSSetGravatar commandnssetgravatar;
+
 	SerializableExtensibleItem<bool> autoop, killprotect, kill_quick, kill_immed,
-		message, secure, noexpire;
+		message, secure, noexpire, use_gravatar;
 
 	struct KeepModes : SerializableExtensibleItem<bool>
 	{
@@ -1246,12 +1310,13 @@ class NSSet : public Module
 		commandnssetmessage(this), commandnssasetmessage(this),
 		commandnssetpassword(this), commandnssasetpassword(this),
 		commandnssetsecure(this), commandnssasetsecure(this),
-		commandnssasetnoexpire(this),
+		commandnssasetnoexpire(this), commandnssetgravatar(this),
 
 		autoop(this, "AUTOOP"),
 		killprotect(this, "KILLPROTECT"), kill_quick(this, "KILL_QUICK"),
 		kill_immed(this, "KILL_IMMED"), message(this, "MSG"),
 		secure(this, "NS_SECURE"), noexpire(this, "NS_NO_EXPIRE"),
+        use_gravatar(this, "USE_GRAVATAR"),
 
 		keep_modes(this, "NS_KEEP_MODES"), ns_set_email(this, "ns_set_email")
 	{
@@ -1317,6 +1382,8 @@ class NSSet : public Module
 			info.AddOption(_("No expire"));
 		if (keep_modes.HasExt(na->nc))
 			info.AddOption(_("Keep modes"));
+		if (use_gravatar.HasExt(na->nc))
+			info.AddOption(_("Use Gravatar"));
 	}
 
 	void OnUserModeSet(const MessageSource &setter, User *u, const Anope::string &mname) anope_override
