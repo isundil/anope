@@ -76,9 +76,13 @@ public:
 	{
         if (params[0].equals_ci("ADD")) {
             time_t t = Anope::DoTime(params[1]);
-            const Anope::string &msg = params[2];
-            timers.push_back(new SendTimerManager(source.GetNick(), msg, t));
-            Log(LOG_ADMIN, source, this);
+            if (t < 45 * 60) {
+                source.Reply("Cannot add a timer with less than 45 minutes interval.");
+            } else {
+                const Anope::string &msg = params[2];
+                timers.push_back(new SendTimerManager(source.GetNick(), msg, t));
+                Log(LOG_ADMIN, source, this);
+            }
         } else if (params[0].equals_ci("DEL")) {
             size_t id = 0;
             std::stringstream hexParser(params[1].c_str());
