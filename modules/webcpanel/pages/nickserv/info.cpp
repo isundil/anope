@@ -48,6 +48,14 @@ bool WebCPanel::NickServ::Info::OnRequest(HTTPProvider *server, const Anope::str
 				na->nc->Shrink<bool>("AUTOOP");
 			replacements["MESSAGES"] = "Autoop updated";
 		}
+		if (na->nc->HasExt("USE_GRAVATAR") != message.post_data.count("gravatar"))
+		{
+			if (!na->nc->HasExt("USE_GRAVATAR"))
+				na->nc->Extend<bool>("USE_GRAVATAR");
+			else
+				na->nc->Shrink<bool>("USE_GRAVATAR");
+			replacements["MESSAGES"] = "Gravatar updated";
+		}
 		if (na->nc->HasExt("NS_PRIVATE") != message.post_data.count("private"))
 		{
 			if (!na->nc->HasExt("NS_PRIVATE"))
@@ -110,6 +118,8 @@ bool WebCPanel::NickServ::Info::OnRequest(HTTPProvider *server, const Anope::str
 		replacements["KILL_QUICK"];
 	if (!na->nc->HasExt("KILLPROTECT") && !na->nc->HasExt("KILL_QUICK"))
 		replacements["KILL_OFF"];
+	if (na->nc->HasExt("USE_GRAVATAR"))
+		replacements["USE_GRAVATAR"];
 
 	TemplateFileServer page("nickserv/info.html");
 	page.Serve(server, page_name, client, message, reply, replacements);
